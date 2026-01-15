@@ -7,10 +7,10 @@ import {
     generateSalt,
 } from "secure-remote-password/client.js";
 import type TypedEmitter from "typed-emitter";
+import { ActiveObjectType } from "./activeobject/ActiveObjectTypes.js";
+import { GenericCAOInitData } from "./activeobject/GenericCAOInitData.js";
 import { CommandClient } from "./command/CommandClient.js";
 import type { ServerCommand } from "./command/ServerCommand.js";
-import { ActiveObjectType } from "./command/activeobject/ActiveObjectTypes.js";
-import { GenericCAOInitData } from "./command/activeobject/GenericCAOInitData.js";
 import { ClientFirstSRP } from "./command/client/ClientFirstSRP.js";
 import { ClientInit } from "./command/client/ClientInit.js";
 import { ClientInit2 } from "./command/client/ClientInit2.js";

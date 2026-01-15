@@ -1,4 +1,4 @@
-import { PayloadHelper } from "../packet/PayloadHelper.js";
+import { PayloadHelper } from "../command/packet/PayloadHelper.js";
 import { type AoCommand, parseAoCommand } from "./ActiveObjectCommands.js";
 
 export class GenericCAOInitData {

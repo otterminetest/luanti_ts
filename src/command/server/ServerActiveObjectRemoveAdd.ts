@@ -1,6 +1,6 @@
+import { ActiveObjectType } from "../../activeobject/ActiveObjectTypes.js";
+import { GenericCAOInitData } from "../../activeobject/GenericCAOInitData.js";
 import type { ServerCommand } from "../ServerCommand.js";
-import { ActiveObjectType } from "../activeobject/ActiveObjectTypes.js";
-import { GenericCAOInitData } from "../activeobject/GenericCAOInitData.js";
 import { PayloadHelper } from "../packet/PayloadHelper.js";
 
 export interface AddedObject {

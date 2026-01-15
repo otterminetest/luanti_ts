@@ -1,4 +1,4 @@
-import { PayloadHelper } from "../packet/PayloadHelper.js";
+import { PayloadHelper } from "../command/packet/PayloadHelper.js";
 
 export enum ActiveObjectCommandType {
     SET_PROPERTIES = 0,

@@ -1,5 +1,5 @@
+import { type AoCommand, parseAoCommand } from "../../activeobject/ActiveObjectCommands.js";
 import type { ServerCommand } from "../ServerCommand.js";
-import { type AoCommand, parseAoCommand } from "../activeobject/ActiveObjectCommands.js";
 import { PayloadHelper } from "../packet/PayloadHelper.js";
 
 export class ServerActiveObjectMessages implements ServerCommand {
