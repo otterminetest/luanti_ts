@@ -1,38 +1,127 @@
-import { Client } from "../Client.js";
-import { WorldMap } from "./WorldMap.js";
-import { Pos, PosType } from "../util/pos.js";
-import { ServerMovePlayer } from "../command/server/ServerMovePlayer.js";
+import type { Client } from "../Client.js";
+import { ClientGotBlocks } from "../command/client/ClientGotBlocks.js";
 import { ClientPlayerPos } from "../command/client/ClientPlayerPos.js";
 import { PacketType } from "../command/packet/types.js";
-import { ClientGotBlocks } from "../command/client/ClientGotBlocks.js";
-
-
+import { ServerMovePlayer } from "../command/server/ServerMovePlayer.js";
+import { PlayerControlKeys } from "../util/keys.js";
+import { Pos, type PosType } from "../util/pos.js";
+import type { WorldMap } from "./WorldMap.js";
 
 export class Scene {
+    // current state
+    pos = new Pos<PosType.Entity>(0, 0, 0);
+    speed = new Pos<PosType.Entity>(0, 0, 0);
+    pitch = 0;
+    yaw = 0;
+    keyPressed = PlayerControlKeys.None;
+    fov = 0; // 0 = default/server controlled
+    wantedRange = 0;
+    cameraInverted = false;
+    movementSpeed = 0;
+    movementDir = 0;
 
-    pos = new Pos<PosType.Entity>(0, 0, 0)
+    private lastSent = {
+        pos: new Pos<PosType.Entity>(0, 0, 0),
+        speed: new Pos<PosType.Entity>(0, 0, 0),
+        pitch: 0,
+        yaw: 0,
+        keyPressed: 0,
+        fov: 0,
+        wantedRange: 0,
+        cameraInverted: false,
+        movementSpeed: 0,
+        movementDir: 0,
+    };
 
-    constructor(public client: Client, public wm: WorldMap) {
-        wm.events.on("BlockAdded", b => {
-            const gotblocks = new ClientGotBlocks([b.pos])
-            client.cc.sendCommand(gotblocks, PacketType.Original)
-        })
+    private playerPosRepeatCount = 0;
 
-        client.cc.events.on("ServerCommand", cmd => {
+    constructor(
+        public client: Client,
+        public wm: WorldMap,
+    ) {
+        wm.events.on("BlockAdded", (b) => {
+            const gotblocks = new ClientGotBlocks([b.pos]);
+            client.cc.sendCommand(gotblocks, PacketType.Original);
+        });
+
+        client.cc.events.on("ServerCommand", (cmd) => {
             if (cmd instanceof ServerMovePlayer) {
-                console.log(new Pos<PosType.Entity>(cmd.posX, cmd.posY, cmd.posZ))
+                this.pos = new Pos<PosType.Entity>(cmd.posX, cmd.posY, cmd.posZ);
+                this.pitch = cmd.pitch;
+                this.yaw = cmd.yaw;
+                console.log(`[Scene] Server corrected pos to ${this.pos}`);
             }
-        })
+        });
 
-        client.events.on("Tick", c => {
-            // XXX: move forward 1m/s
-            //this.pos = this.pos.add(new Pos<PosType.Entity>(1, 0, 0))
-            c.cc.sendCommand(new ClientPlayerPos(this.pos), PacketType.Original)
-        })
+        client.events.on("Tick", (c) => {
+            this.sendPlayerPos(c);
+        });
 
-        client.events.on("PlayerMove", p => {
-            console.log("playermove", p)
-            this.pos = p
-        })
+        client.events.on("PlayerMove", (p) => {
+            this.pos = p;
+        });
+    }
+
+    private sendPlayerPos(client: Client) {
+        const posChanged =
+            this.pos.x !== this.lastSent.pos.x ||
+            this.pos.y !== this.lastSent.pos.y ||
+            this.pos.z !== this.lastSent.pos.z;
+
+        const speedChanged =
+            this.speed.x !== this.lastSent.speed.x ||
+            this.speed.y !== this.lastSent.speed.y ||
+            this.speed.z !== this.lastSent.speed.z;
+
+        const identical =
+            !posChanged &&
+            !speedChanged &&
+            this.pitch === this.lastSent.pitch &&
+            this.yaw === this.lastSent.yaw &&
+            this.keyPressed === this.lastSent.keyPressed &&
+            this.fov === this.lastSent.fov &&
+            this.cameraInverted === this.lastSent.cameraInverted &&
+            this.wantedRange === this.lastSent.wantedRange &&
+            this.movementSpeed === this.lastSent.movementSpeed &&
+            this.movementDir === this.lastSent.movementDir;
+
+        if (identical) {
+            // If identical, we still send occasionally to prevent timeouts/desync
+            this.playerPosRepeatCount++;
+            if (this.playerPosRepeatCount >= 5) {
+                return;
+            }
+        } else {
+            this.playerPosRepeatCount = 0;
+        }
+
+        // Update Snapshot
+        this.lastSent.pos = new Pos(this.pos.x, this.pos.y, this.pos.z);
+        this.lastSent.speed = new Pos(this.speed.x, this.speed.y, this.speed.z);
+        this.lastSent.pitch = this.pitch;
+        this.lastSent.yaw = this.yaw;
+        this.lastSent.keyPressed = this.keyPressed;
+        this.lastSent.fov = this.fov;
+        this.lastSent.wantedRange = this.wantedRange;
+        this.lastSent.cameraInverted = this.cameraInverted;
+        this.lastSent.movementSpeed = this.movementSpeed;
+        this.lastSent.movementDir = this.movementDir;
+
+        // Send Packet
+        client.cc.sendCommand(
+            new ClientPlayerPos({
+                pos: this.pos,
+                speed: this.speed,
+                pitch: this.pitch,
+                yaw: this.yaw,
+                keyPressed: this.keyPressed,
+                fov: this.fov,
+                wantedRange: this.wantedRange,
+                cameraInverted: this.cameraInverted,
+                movementSpeed: this.movementSpeed,
+                movementDir: this.movementDir,
+            }),
+            PacketType.Original,
+        );
     }
 }

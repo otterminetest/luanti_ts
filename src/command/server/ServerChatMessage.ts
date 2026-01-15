@@ -1,12 +1,11 @@
-import { PayloadHelper } from "../packet/PayloadHelper.js"
-import { ServerCommand } from "../ServerCommand.js"
+import type { ServerCommand } from "../ServerCommand.js";
+import { PayloadHelper } from "../packet/PayloadHelper.js";
 
 export class ServerChatMessage implements ServerCommand {
-    message = ""
+    message = "";
 
     unmarshalPacket(dv: DataView): void {
-        const ph = new PayloadHelper(dv)
-        this.message = ph.getWideString(4)
+        const ph = new PayloadHelper(dv);
+        this.message = ph.getWideString(4);
     }
-
 }

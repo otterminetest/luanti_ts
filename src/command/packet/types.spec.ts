@@ -1,10 +1,9 @@
+import { PacketType } from "./types.js";
 
-import { PacketType } from "./types.js"
-
-describe("types", function(){
-    test("PacketType", function(){
-        const c = PacketType.Control
-        expect(c).toBe(0x00)
-        expect(PacketType[0x00]).toBe("Control")
-    })
-})
+describe("types", () => {
+    test("PacketType", () => {
+        const c = PacketType.Control;
+        expect(c).toBe(0x00);
+        expect(PacketType[0x00]).toBe("Control");
+    });
+});

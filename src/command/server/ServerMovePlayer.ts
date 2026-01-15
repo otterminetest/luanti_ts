@@ -1,11 +1,11 @@
-import { ServerCommand } from "../ServerCommand.js";
+import type { ServerCommand } from "../ServerCommand.js";
 
 export class ServerMovePlayer implements ServerCommand {
-    posX = 0
-    posY = 0
-    posZ = 0
-    pitch = 0
-    yaw = 0
+    posX = 0;
+    posY = 0;
+    posZ = 0;
+    pitch = 0;
+    yaw = 0;
 
     unmarshalPacket(dv: DataView): void {
         this.posX = dv.getFloat32(0) / 10;

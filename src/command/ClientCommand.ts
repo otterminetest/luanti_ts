@@ -1,5 +1,4 @@
-
 export interface ClientCommand {
-    getCommandID(): number
-    marshalPacket(): Uint8Array
+    getCommandID(): number;
+    marshalPacket(): Uint8Array;
 }

@@ -1,4 +1,4 @@
-import { ClientCommand } from "../ClientCommand.js";
+import type { ClientCommand } from "../ClientCommand.js";
 import { Packet } from "./Packet.js";
 import { splitPayload } from "./splitter.js";
 import { ControlType, MaxPacketLength, PacketType } from "./types.js";
@@ -35,7 +35,11 @@ export function createPeerInit(): Packet {
     return p;
 }
 
-export function createCommandPacket(cmd: ClientCommand, peerId: number, type: PacketType): Array<Packet> {
+export function createCommandPacket(
+    cmd: ClientCommand,
+    peerId: number,
+    type: PacketType,
+): Array<Packet> {
     const commandPayload = cmd.marshalPacket();
     const payload = new Uint8Array(2 + commandPayload.length);
     const dv = new DataView(payload.buffer);
@@ -45,12 +49,12 @@ export function createCommandPacket(cmd: ClientCommand, peerId: number, type: Pa
     if (payload.length > MaxPacketLength) {
         // split into multiple packets
         const packets = splitPayload(payload);
-        packets.forEach(p => {
+        for (const p of packets) {
             p.packetType = PacketType.Reliable;
             p.subType = PacketType.Split;
             p.peerId = peerId;
             p.channel = 1;
-        });
+        }
 
         return packets;
     }

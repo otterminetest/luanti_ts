@@ -1,15 +1,14 @@
+import type { ClientCommand } from "../ClientCommand.js";
 import { PayloadBuilder } from "../packet/PayloadBuilder.js";
-import { ClientCommand } from "../ClientCommand.js";
 
 export class ClientInit implements ClientCommand {
-
     // https://github.com/minetest/minetest/blob/master/src/serialization.h#L66
-    clientMax = 29
+    clientMax = 29;
     // unused: https://github.com/minetest/minetest/blob/master/src/network/serverpackethandler.cpp#L100
-    supportedCompressionModes = 0
+    supportedCompressionModes = 0;
     // https://github.com/minetest/minetest/blob/master/src/network/networkprotocol.h#L208
-    minNetProtoVersion = 37
-    maxNetProtoVersion = 40
+    minNetProtoVersion = 37;
+    maxNetProtoVersion = 40;
 
     constructor(public playername: string) {}
 
@@ -26,5 +25,4 @@ export class ClientInit implements ClientCommand {
         p.appendString(this.playername);
         return p.toUint8Array();
     }
-
 }

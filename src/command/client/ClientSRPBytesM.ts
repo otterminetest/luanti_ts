@@ -1,8 +1,7 @@
+import type { ClientCommand } from "../ClientCommand.js";
 import { PayloadBuilder } from "../packet/PayloadBuilder.js";
-import { ClientCommand } from "../ClientCommand.js";
 
 export class ClientSRPBytesM implements ClientCommand {
-
     constructor(public bytesM: number[]) {}
 
     getCommandID(): number {
@@ -11,9 +10,8 @@ export class ClientSRPBytesM implements ClientCommand {
 
     marshalPacket(): Uint8Array {
         const p = new PayloadBuilder(2 + this.bytesM.length + 1);
-        p.appendArray(this.bytesM)
-        p.appendUint8(0x01)
+        p.appendArray(this.bytesM);
+        p.appendUint8(0x01);
         return p.toUint8Array();
     }
-
 }

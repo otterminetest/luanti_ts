@@ -1,5 +1,5 @@
-import * as dgram from "dgram";
-import { EventEmitter } from "events"
+import * as dgram from "node:dgram";
+import { EventEmitter } from "node:events";
 
 export class UdpConnection extends EventEmitter {
     private socket: dgram.Socket;

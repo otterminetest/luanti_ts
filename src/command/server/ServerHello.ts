@@ -1,13 +1,12 @@
+import type { ServerCommand } from "../ServerCommand.js";
 import { PayloadHelper } from "../packet/PayloadHelper.js";
-import { ServerCommand } from "../ServerCommand.js";
 
 export class ServerHello implements ServerCommand {
-
-    serializationVersion!: number
-    compressionMode!: number
-    protocolVersion!: number
-    authMechanismSrp!: boolean
-    authMechanismFirstSrp!: boolean
+    serializationVersion!: number;
+    compressionMode!: number;
+    protocolVersion!: number;
+    authMechanismSrp!: boolean;
+    authMechanismFirstSrp!: boolean;
 
     unmarshalPacket(dv: DataView): void {
         const ph = new PayloadHelper(dv);
@@ -17,5 +16,4 @@ export class ServerHello implements ServerCommand {
         this.authMechanismSrp = ph.getBoolean(8, 0x02);
         this.authMechanismFirstSrp = ph.getBoolean(8, 0x04);
     }
-
 }

@@ -1,8 +1,7 @@
-
-let seqNr = 65500-1
+let seqNr = 65500 - 1;
 
 export function getNextSeqNr() {
-    if (seqNr >= 65535){
+    if (seqNr >= 65535) {
         seqNr = 0;
     } else {
         seqNr++;

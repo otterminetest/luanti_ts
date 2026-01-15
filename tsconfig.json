@@ -12,5 +12,9 @@
     "sourceMap": true,
     "allowSyntheticDefaultImports": true,
     "lib": [ "es2022" ],
-  }
+  },
+  "exclude": [
+    "**/*.spec.ts",
+    "**/*.test.ts"
+  ]
 }

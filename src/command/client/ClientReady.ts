@@ -1,18 +1,17 @@
-import { ClientCommand } from "../ClientCommand.js";
+import type { ClientCommand } from "../ClientCommand.js";
 import { PayloadBuilder } from "../packet/PayloadBuilder.js";
 
 export class ClientReady implements ClientCommand {
-    
-    versionMajor = 5
-    versionMinor = 7
-    versionPatch = 0
-    fullVersion = ""
-    formspecVersion = 4
+    versionMajor = 5;
+    versionMinor = 7;
+    versionPatch = 0;
+    fullVersion = "";
+    formspecVersion = 4;
 
     getCommandID(): number {
         return 0x43;
     }
-    
+
     marshalPacket(): Uint8Array {
         const pb = new PayloadBuilder(6 + 2 + this.fullVersion.length);
         pb.appendUint8(this.versionMajor);
