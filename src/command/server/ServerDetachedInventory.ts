@@ -1,3 +1,4 @@
+import { Inventory } from "../../inventory/Inventory.js";
 import type { ServerCommand } from "../ServerCommand.js";
 import { PayloadHelper } from "../packet/PayloadHelper.js";
 
@@ -5,6 +6,8 @@ export class ServerDetachedInventory implements ServerCommand {
     name!: string;
     keepInventory!: boolean;
     inventoryData?: string;
+
+    parsedInventory?: Inventory;
 
     unmarshalPacket(dv: DataView): void {
         const ph = new PayloadHelper(dv);
@@ -21,8 +24,15 @@ export class ServerDetachedInventory implements ServerCommand {
 
         if (this.keepInventory && offset < dv.byteLength) {
             // Remaining bytes are the inventory serialized string
-            const buf = new Uint8Array(dv.buffer, dv.byteOffset + offset);
+            const buf = new Uint8Array(dv.buffer, dv.byteOffset + offset, dv.byteLength - offset);
             this.inventoryData = new TextDecoder("utf-8").decode(buf);
+
+            this.parsedInventory = new Inventory();
+            try {
+                this.parsedInventory.deSerialize(this.inventoryData);
+            } catch (e) {
+                console.error(`Error parsing detached inventory '${this.name}':`, e);
+            }
         }
     }
 }

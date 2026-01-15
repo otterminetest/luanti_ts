@@ -3,12 +3,12 @@ import { PayloadBuilder } from "../packet/PayloadBuilder.js";
 
 export class ClientInit implements ClientCommand {
     // https://github.com/minetest/minetest/blob/master/src/serialization.h#L66
-    clientMax = 29;
+    clientMax = 29; // SER_FMT_VER_HIGHEST_READ
     // unused: https://github.com/minetest/minetest/blob/master/src/network/serverpackethandler.cpp#L100
     supportedCompressionModes = 0;
     // https://github.com/minetest/minetest/blob/master/src/network/networkprotocol.h#L208
     minNetProtoVersion = 37;
-    maxNetProtoVersion = 40;
+    maxNetProtoVersion = 51;
 
     constructor(public playername: string) {}
 

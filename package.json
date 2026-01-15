@@ -19,7 +19,7 @@
     "@types/pako": "^2.0.0",
     "@types/ws": "^8.5.4",
     "dexie": "^3.2.3",
-    "fzstd": "^0.1.0",
+    "fzstd": "^0.1.1",
     "jest": "^29.4.3",
     "js-logger": "^1.6.1",
     "node-polyfill-webpack-plugin": "^2.0.1",

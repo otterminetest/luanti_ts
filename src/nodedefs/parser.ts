@@ -1,3 +1,4 @@
+import { decompress } from "fzstd";
 import { inflate } from "pako";
 import { PayloadHelper } from "../command/packet/PayloadHelper.js";
 import type { ServerNodeDefinitions } from "../command/server/ServerNodeDefinitions.js";
@@ -155,11 +156,22 @@ export function ParseNodeDefinitions(cmd: ServerNodeDefinitions): Array<NodeDefi
     const defs = new Array<NodeDefinition>();
 
     const compressedNodedefs = new Uint8Array(cmd.data);
-    if (compressedNodedefs[0] !== 0x78 || compressedNodedefs[1] !== 0x9c) {
-        throw new Error("invalid zlib magic");
+    let output: Uint8Array;
+
+    // Check for Zstd Magic (0x28 0xB5 0x2F 0xFD)
+    if (
+        compressedNodedefs.length >= 4 &&
+        compressedNodedefs[0] === 0x28 &&
+        compressedNodedefs[1] === 0xb5 &&
+        compressedNodedefs[2] === 0x2f &&
+        compressedNodedefs[3] === 0xfd
+    ) {
+        output = decompress(compressedNodedefs);
+    } else {
+        // Fallback to Zlib (0x78 0x9C is typical, but we let pako handle checks)
+        output = inflate(compressedNodedefs);
     }
 
-    const output = inflate(compressedNodedefs);
     const dv = new DataView(output.buffer);
 
     const version = dv.getUint8(0);
@@ -169,7 +181,14 @@ export function ParseNodeDefinitions(cmd: ServerNodeDefinitions): Array<NodeDefi
         throw new Error(`invalid nodedef version: ${version}`);
     }
 
+    // Offset 3 is start of "serializeString32" payload (u32 length)
+    // The previous code started at 7, which means it skipped:
+    // 0: ver (1 byte)
+    // 1: count (2 bytes)
+    // 3: length of string (4 bytes)
+    // = 7 bytes total
     let offset = 7;
+
     for (let i = 0; i < count; i++) {
         const id = dv.getUint16(offset);
         offset += 2;
