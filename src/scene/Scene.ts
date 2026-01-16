@@ -8,17 +8,18 @@ import { Pos, type PosType } from "../util/pos.js";
 import type { WorldMap } from "./WorldMap.js";
 
 export class Scene {
-    // current state
     pos = new Pos<PosType.Entity>(0, 0, 0);
     speed = new Pos<PosType.Entity>(0, 0, 0);
     pitch = 0;
     yaw = 0;
     keyPressed = PlayerControlKeys.None;
-    fov = 0; // 0 = default/server controlled
+    fov = 0;
     wantedRange = 0;
     cameraInverted = false;
     movementSpeed = 0;
     movementDir = 0;
+
+    private hasReceivedPos = false;
 
     private lastSent = {
         pos: new Pos<PosType.Entity>(0, 0, 0),
@@ -49,7 +50,15 @@ export class Scene {
                 this.pos = new Pos<PosType.Entity>(cmd.posX, cmd.posY, cmd.posZ);
                 this.pitch = cmd.pitch;
                 this.yaw = cmd.yaw;
+
+                this.hasReceivedPos = true;
+
                 console.log(`[Scene] Server corrected pos to ${this.pos}`);
+
+                client.events.emit(
+                    "PlayerMove",
+                    new Pos<PosType.Entity>(cmd.posX, cmd.posY, cmd.posZ),
+                );
             }
         });
 
@@ -59,10 +68,15 @@ export class Scene {
 
         client.events.on("PlayerMove", (p) => {
             this.pos = p;
+            this.hasReceivedPos = true;
         });
     }
 
     private sendPlayerPos(client: Client) {
+        if (!this.hasReceivedPos) {
+            return;
+        }
+
         const posChanged =
             this.pos.x !== this.lastSent.pos.x ||
             this.pos.y !== this.lastSent.pos.y ||

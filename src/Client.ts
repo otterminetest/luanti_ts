@@ -123,11 +123,6 @@ export class Client {
                     if (missing_names.size === 0) {
                         resolve();
                     }
-                } else if (cmd instanceof ServerMovePlayer) {
-                    this.events.emit(
-                        "PlayerMove",
-                        new Pos<PosType.Entity>(cmd.posX, cmd.posY, cmd.posZ),
-                    );
                 } else if (cmd instanceof ServerActiveObjectRemoveAdd) {
                     for (const obj of cmd.addedObjects) {
                         // only care if it's Generic and we have parsed data
