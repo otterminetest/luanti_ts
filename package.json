@@ -1,41 +1,46 @@
 {
-  "name": "luanti_ts",
-  "version": "1.0.0",
-  "description": "",
-  "main": "dist/index.js",
-  "type": "module",
-  "scripts": {
-    "test": "jest",
-    "coverage": "jest --coverage",
-    "typecheck": "tsc --noEmit",
-    "lint": "biome check src",
-    "lint:fix": "biome check --fix src"
-  },
-  "author": "",
-  "license": "MIT",
-  "devDependencies": {
-    "@biomejs/biome": "1.9.4",
-    "@types/jest": "^29.4.0",
-    "@types/pako": "^2.0.0",
-    "@types/ws": "^8.5.4",
-    "dexie": "^3.2.3",
-    "fzstd": "^0.1.1",
-    "jest": "^29.4.3",
-    "js-logger": "^1.6.1",
-    "node-polyfill-webpack-plugin": "^2.0.1",
-    "pako": "^2.1.0",
-    "secure-remote-password": "github:LinusU/secure-remote-password#rfc5054",
-    "ts-jest": "^29.0.5",
-    "ts-loader": "^9.4.2",
-    "tslib": "^2.5.0",
-    "tsx": "^4.20.3",
-    "typed-emitter": "^2.1.0",
-    "typescript": "^4.9.5",
-    "webpack": "^5.75.0",
-    "webpack-cli": "^5.0.1",
-    "ws": "^8.12.1"
-  },
-  "dependencies": {
-    "fake-indexeddb": "^6.0.1"
-  }
+    "name": "luanti_ts",
+    "version": "1.0.0",
+    "description": "",
+    "main": "dist/index.js",
+    "type": "module",
+    "scripts": {
+        "test": "jest",
+        "coverage": "jest --coverage",
+        "typecheck": "tsc --noEmit",
+        "lint": "biome check",
+        "lint:fix": "biome check --fix",
+        "lint:force": "biome check --fix --unsafe"
+    },
+    "author": "",
+    "license": "MIT",
+    "devDependencies": {
+        "@biomejs/biome": "1.9.4",
+        "@types/jest": "^29.4.0",
+        "@types/pako": "^2.0.0",
+        "@types/pouchdb": "^6.4.2",
+        "@types/pouchdb-find": "^7.3.3",
+        "@types/ws": "^8.5.4",
+        "dexie": "^3.2.3",
+        "fzstd": "^0.1.1",
+        "jest": "^29.4.3",
+        "js-logger": "^1.6.1",
+        "node-polyfill-webpack-plugin": "^2.0.1",
+        "pako": "^2.1.0",
+        "secure-remote-password": "github:LinusU/secure-remote-password#rfc5054",
+        "ts-jest": "^29.0.5",
+        "ts-loader": "^9.4.2",
+        "tslib": "^2.5.0",
+        "tsx": "^4.20.3",
+        "typed-emitter": "^2.1.0",
+        "typescript": "^4.9.5",
+        "webpack": "^5.75.0",
+        "webpack-cli": "^5.0.1",
+        "ws": "^8.12.1"
+    },
+    "dependencies": {
+        "fake-indexeddb": "^6.0.1",
+        "pouchdb": "^9.0.0",
+        "pouchdb-find": "^9.0.0"
+    }
 }

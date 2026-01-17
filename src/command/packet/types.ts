@@ -1,4 +1,8 @@
-export const MaxPacketLength = 495;
+export const MaxPacketLength = 512;
+
+export const HEADER_SIZE_BASE = 8; // Protocol(4) + Peer(2) + Chan(1) + Type(1)
+export const HEADER_SIZE_RELIABLE = 3; // Seq(2) + SubType(1)
+export const HEADER_SIZE_SPLIT = 6; // Seq(2) + Count(2) + Num(2) (Type handled by Reliable SubType)
 
 export const ProtocolID = [0x4f, 0x45, 0x74, 0x03];
 

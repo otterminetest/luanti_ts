@@ -15,23 +15,19 @@ import { ClientFirstSRP } from "./command/client/ClientFirstSRP.js";
 import { ClientInit } from "./command/client/ClientInit.js";
 import { ClientInit2 } from "./command/client/ClientInit2.js";
 import { ClientReady } from "./command/client/ClientReady.js";
-import { ClientRequestMedia } from "./command/client/ClientRequestMedia.js";
 import { ClientSRPBytesA } from "./command/client/ClientSRPBytesA.js";
 import { ClientSRPBytesM } from "./command/client/ClientSRPBytesM.js";
 import { PacketType } from "./command/packet/types.js";
 import { ServerAccessDenied } from "./command/server/ServerAccessDenied.js";
 import { ServerActiveObjectRemoveAdd } from "./command/server/ServerActiveObjectRemoveAdd.js";
-import { ServerAnnounceMedia } from "./command/server/ServerAnnounceMedia.js";
 import { ServerAuthAccept } from "./command/server/ServerAuthAccept.js";
 import { ServerHello } from "./command/server/ServerHello.js";
 import { ServerInventory } from "./command/server/ServerInventory.js";
-import { ServerMedia } from "./command/server/ServerMedia.js";
-import { ServerMovePlayer } from "./command/server/ServerMovePlayer.js";
 import { ServerNodeDefinitions } from "./command/server/ServerNodeDefinitions.js";
 import { ServerSRPBytesSB } from "./command/server/ServerSRPBytesSB.js";
 import { Inventory } from "./inventory/Inventory.js";
-import { IndexedDBMediaManager } from "./media/IndexedDBMediaManager.js";
-import type { MediaManager } from "./media/MediaManager.js";
+import { MediaManager } from "./media/MediaManager.js";
+import { PouchDBMediaStore } from "./media/PouchDBMediaStore.js";
 import { UdpConnection } from "./net/UdpConnection.js";
 import type { NodeDefinition } from "./nodedefs/NodeDefinition.js";
 import { ParseNodeDefinitions } from "./nodedefs/parser.js";
@@ -57,103 +53,14 @@ export class Client {
         const wm = new WorldMap(this.cc, this.nodedefs);
         new Scene(this, wm);
 
-        this.mediamanager = new IndexedDBMediaManager();
+        const mediaStore = new PouchDBMediaStore(`media_${host}_${port}`);
+        this.mediaManager = new MediaManager(this, mediaStore);
 
         this.cc.events.on("close", () => {
             if (this.tickhandle) clearInterval(this.tickhandle);
         });
 
-        this.media_ready = new Promise((resolve, reject) => {
-            let name_to_hash = new Map<string, string>();
-            const cached_names = new Map<string, boolean>();
-            const missing_names = new Map<string, boolean>();
-
-            this.cc.events.on("ServerCommand", (cmd) => {
-                if (cmd instanceof ServerAnnounceMedia) {
-                    const filenameList = Array.from(cmd.hashes.keys());
-                    const missing_filenames = new Array<string>();
-
-                    // populate name-hash map
-                    name_to_hash = cmd.hashes;
-
-                    const promises = filenameList
-                        // biome-ignore lint/style/noNonNullAssertion: filename comes from keys()
-                        .map((filename) => cmd.hashes.get(filename)!)
-                        .map((hash) => this.mediamanager.hasMedia(hash));
-
-                    Promise.all(promises).then((hasMediaList) => {
-                        for (let i = 0; i < hasMediaList.length; i++) {
-                            const filename = filenameList[i];
-                            const hasMedia = hasMediaList[i];
-                            if (!hasMedia) {
-                                missing_filenames.push(filename);
-                                missing_names.set(filename, true);
-                            }
-                        }
-
-                        if (missing_filenames.length > 0) {
-                            console.debug(`Requesting ${missing_filenames.length} media files`);
-                            const crm = new ClientRequestMedia();
-                            crm.names = missing_filenames;
-                            this.cc.sendCommand(crm, PacketType.Reliable, 10000).catch((e) => {
-                                console.error("Media Request Failed/Timed out:", e);
-                            });
-                        } else {
-                            console.debug("All media files present");
-                            resolve();
-                        }
-                    });
-                } else if (cmd instanceof ServerMedia) {
-                    for (const [name, buf] of cmd.files) {
-                        if (cached_names.has(name)) {
-                            // skip fast
-                            return;
-                        }
-                        cached_names.set(name, true);
-                        missing_names.delete(name);
-                        // biome-ignore lint/style/noNonNullAssertion: logic ensures name exists
-                        const hash = name_to_hash.get(name)!;
-                        console.debug(
-                            `Adding '${name}'/'${hash}' (${buf.length} bytes) to mediamanager`,
-                        );
-                        // biome-ignore lint/suspicious/noExplicitAny: workaround for Blob type mismatch
-                        this.mediamanager.addMedia(hash, name, new Blob([buf as any]));
-                    }
-
-                    if (missing_names.size === 0) {
-                        resolve();
-                    }
-                } else if (cmd instanceof ServerActiveObjectRemoveAdd) {
-                    for (const obj of cmd.addedObjects) {
-                        // only care if it's Generic and we have parsed data
-                        if (
-                            obj.type === ActiveObjectType.GENERIC &&
-                            obj.data instanceof GenericCAOInitData
-                        ) {
-                            const initData = obj.data;
-
-                            // check if object is player and is me
-                            if (initData.isPlayer && initData.name === this.username) {
-                                console.debug(
-                                    `[Client] Local player object initialized. ID: ${obj.id}`,
-                                );
-                                this.localPlayerId = obj.id;
-                                this.localPlayerInitData = initData;
-                                this.events.emit("LocalPlayerInit", obj.id, initData);
-                            }
-                        }
-                    }
-                } else if (cmd instanceof ServerInventory) {
-                    console.debug("[Client] Received ServerInventory update");
-                    try {
-                        this.inventory.deSerialize(cmd.inventoryString);
-                        this.events.emit("InventoryUpdated", this.inventory);
-                    } catch (e) {
-                        console.error("[Client] Failed to update inventory:", e);
-                    }
-                }
-            });
-        });
+        this.media_ready = this.mediaManager.waitForMedia();
 
         this.nodedefs_ready = new Promise((resolve, reject) => {
             this.cc.events.on("ServerCommand", (cmd) => {
@@ -173,9 +80,42 @@ export class Client {
                 }
             });
         });
+
+        this.cc.events.on("ServerCommand", (cmd) => {
+            if (cmd instanceof ServerActiveObjectRemoveAdd) {
+                for (const obj of cmd.addedObjects) {
+                    // only care if it's generic and we have parsed data
+                    if (
+                        obj.type === ActiveObjectType.GENERIC &&
+                        obj.data instanceof GenericCAOInitData
+                    ) {
+                        const initData = obj.data;
+
+                        // check if object is player and is me
+                        if (initData.isPlayer && initData.name === this.username) {
+                            console.debug(
+                                `[Client] Local player object initialized. ID: ${obj.id}`,
+                            );
+                            this.localPlayerId = obj.id;
+                            this.localPlayerInitData = initData;
+                            this.events.emit("LocalPlayerInit", obj.id, initData);
+                        }
+                    }
+                }
+            } else if (cmd instanceof ServerInventory) {
+                console.debug("[Client] Received ServerInventory update");
+                try {
+                    this.inventory.deSerialize(cmd.inventoryString);
+                    this.events.emit("InventoryUpdated", this.inventory);
+                } catch (e) {
+                    console.error("[Client] Failed to update inventory:", e);
+                }
+            }
+        });
     }
 
     cc: CommandClient;
+    mediaManager: MediaManager;
 
     media_ready: Promise<void>;
     nodedefs_ready: Promise<void>;
@@ -184,7 +124,6 @@ export class Client {
 
     eph = generateEphemeral();
     nodedefs = new Map<number, NodeDefinition>();
-    mediamanager: MediaManager;
     tickhandle!: NodeJS.Timeout;
 
     // Inventory State
@@ -290,7 +229,8 @@ export class Client {
                 })
                 .then(() => {
                     clearTimeout(loginTimeout);
-                    return this.nodedefs_ready; //media_ready
+                    // Wait for both definitions and media
+                    return Promise.all([this.nodedefs_ready, this.media_ready]);
                 })
                 .then(() => resolve())
                 .catch((e) => {

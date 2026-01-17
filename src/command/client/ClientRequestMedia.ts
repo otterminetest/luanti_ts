@@ -2,23 +2,30 @@ import type { ClientCommand } from "../ClientCommand.js";
 import { PayloadBuilder } from "../packet/PayloadBuilder.js";
 
 export class ClientRequestMedia implements ClientCommand {
-    names = new Array<string>();
+    constructor(public fileNames: string[]) {}
 
-    getCommandID() {
-        return 0x40;
+    getCommandID(): number {
+        return 0x40; // TOSERVER_REQUEST_MEDIA
     }
 
     marshalPacket(): Uint8Array {
-        let name_size = 0;
-        for (const n of this.names) {
-            name_size += n.length + 2;
+        // Calculate strict byte size
+        // u16 count
+        let size = 2;
+        const encoder = new TextEncoder();
+
+        for (const s of this.fileNames) {
+            // u16 len + bytes
+            size += 2 + encoder.encode(s).length;
         }
 
-        const pb = new PayloadBuilder(2 + name_size);
-        pb.appendUint16(this.names.length);
-        for (const n of this.names) {
-            pb.appendString(n);
+        const pb = new PayloadBuilder(size);
+        pb.appendUint16(this.fileNames.length);
+
+        for (const s of this.fileNames) {
+            pb.appendString(s);
         }
+
         return pb.toUint8Array();
     }
 }

@@ -15,6 +15,10 @@ export class PayloadBuilder {
         this.index++;
     }
 
+    appendBool(v: boolean) {
+        this.appendUint8(v ? 1 : 0);
+    }
+
     appendUint16(v: number) {
         this.dv.setUint16(this.index, v);
         this.index += 2;
@@ -40,8 +44,24 @@ export class PayloadBuilder {
         this.index += 4;
     }
 
+    // Standard string (u16 length prefix)
     appendString(s: string) {
         this.appendUint16(s.length);
+        for (let i = 0; i < s.length; i++) {
+            this.appendUint8(s.charCodeAt(i));
+        }
+    }
+
+    // Long string (u32 length prefix) - Used for Formspecs/Nodemeta
+    appendLongString(s: string) {
+        this.appendUint32(s.length);
+        for (let i = 0; i < s.length; i++) {
+            this.appendUint8(s.charCodeAt(i));
+        }
+    }
+
+    // Raw string (No length prefix) - Used for Inventory Actions
+    appendRawString(s: string) {
         for (let i = 0; i < s.length; i++) {
             this.appendUint8(s.charCodeAt(i));
         }
@@ -55,6 +75,6 @@ export class PayloadBuilder {
     }
 
     toUint8Array(): Uint8Array {
-        return this.data;
+        return this.data.subarray(0, this.index);
     }
 }
