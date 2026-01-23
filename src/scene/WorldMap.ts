@@ -5,6 +5,7 @@ import { parseBlock } from "../block/blockparser.js";
 import type { CommandClient } from "../command/CommandClient.js";
 import { ServerBlockData } from "../command/server/ServerBlockData.js";
 import type { NodeDefinition } from "../nodedefs/NodeDefinition.js";
+import Logger from "../util/logger.js";
 import { type Pos, type PosType, getNodeRegion, toMapblock } from "../util/pos.js";
 
 export type WorldMapEvents = {
@@ -15,6 +16,7 @@ export type WorldMapEvents = {
 export class WorldMap {
     // TODO: block cleanup / TTL
     readonly blocks = new Map<string, BlockData>();
+    private log = Logger.get("WorldMap");
 
     readonly events = new EventEmitter() as TypedEventEmitter<WorldMapEvents>;
 
@@ -26,7 +28,7 @@ export class WorldMap {
             if (cmd instanceof ServerBlockData) {
                 const block = parseBlock(cmd.data, cmd.pos);
                 this.blocks.set(cmd.pos.toString(), block);
-                console.debug(`Got block: ${cmd.pos}`, block.blockMapping);
+                this.log.debug(`Got block: ${cmd.pos}`, block.blockMapping);
                 this.events.emit("BlockAdded", block);
             }
         });

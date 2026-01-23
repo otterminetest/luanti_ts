@@ -34,6 +34,7 @@ import { ParseNodeDefinitions } from "./nodedefs/parser.js";
 import { Scene } from "./scene/Scene.js";
 import { WorldMap } from "./scene/WorldMap.js";
 import { arrayToHex, hexToArray } from "./util/hex.js";
+import Logger from "./util/logger.js";
 import { Pos, type PosType } from "./util/pos.js";
 
 type ClientEvents = {
@@ -45,36 +46,49 @@ type ClientEvents = {
 
 type CommandConstructor<T extends ServerCommand> = new (...args: unknown[]) => T;
 
+export interface ClientOptions {
+    fetchMedia?: boolean;
+}
+
 export class Client {
-    constructor(host: string, port: number) {
+    static Logger = Logger;
+
+    private log = Logger.get("Client");
+
+    constructor(host: string, port: number, options: ClientOptions = {}) {
+        const { fetchMedia = true } = options;
+
         const udp = new UdpConnection(host, port);
         udp.open();
         this.cc = new CommandClient(udp);
         const wm = new WorldMap(this.cc, this.nodedefs);
         new Scene(this, wm);
 
-        const mediaStore = new PouchDBMediaStore(`media_${host}_${port}`);
-        this.mediaManager = new MediaManager(this, mediaStore);
+        if (fetchMedia) {
+            const mediaStore = new PouchDBMediaStore(`media_${host}_${port}`);
+            this.mediaManager = new MediaManager(this, mediaStore);
+            this.media_ready = this.mediaManager.waitForMedia();
+        } else {
+            this.media_ready = Promise.resolve();
+        }
 
         this.cc.events.on("close", () => {
             if (this.tickhandle) clearInterval(this.tickhandle);
         });
 
-        this.media_ready = this.mediaManager.waitForMedia();
-
         this.nodedefs_ready = new Promise((resolve, reject) => {
             this.cc.events.on("ServerCommand", (cmd) => {
                 if (cmd instanceof ServerNodeDefinitions) {
                     try {
-                        console.debug("Parsing Node Definitions...");
+                        this.log.debug("Parsing Node Definitions...");
                         const deflist = ParseNodeDefinitions(cmd);
                         for (const def of deflist) {
                             this.nodedefs.set(def.id, def);
                         }
-                        console.debug(`Parsed ${deflist.length} node definitions.`);
+                        this.log.debug(`Parsed ${deflist.length} node definitions.`);
                         resolve();
                     } catch (e) {
-                        console.error("Failed to parse Node Definitions:", e);
+                        this.log.error("Failed to parse Node Definitions:", e);
                         reject(new Error("Node Definition Parsing Failed"));
                     }
                 }
@@ -93,9 +107,7 @@ export class Client {
 
                         // check if object is player and is me
                         if (initData.isPlayer && initData.name === this.username) {
-                            console.debug(
-                                `[Client] Local player object initialized. ID: ${obj.id}`,
-                            );
+                            this.log.debug(`Local player object initialized. ID: ${obj.id}`);
                             this.localPlayerId = obj.id;
                             this.localPlayerInitData = initData;
                             this.events.emit("LocalPlayerInit", obj.id, initData);
@@ -103,19 +115,19 @@ export class Client {
                     }
                 }
             } else if (cmd instanceof ServerInventory) {
-                console.debug("[Client] Received ServerInventory update");
+                this.log.debug("Received ServerInventory update");
                 try {
                     this.inventory.deSerialize(cmd.inventoryString);
                     this.events.emit("InventoryUpdated", this.inventory);
                 } catch (e) {
-                    console.error("[Client] Failed to update inventory:", e);
+                    this.log.error("Failed to update inventory:", e);
                 }
             }
         });
     }
 
     cc: CommandClient;
-    mediaManager: MediaManager;
+    mediaManager?: MediaManager;
 
     media_ready: Promise<void>;
     nodedefs_ready: Promise<void>;

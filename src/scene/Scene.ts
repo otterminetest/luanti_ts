@@ -4,6 +4,7 @@ import { ClientPlayerPos } from "../command/client/ClientPlayerPos.js";
 import { PacketType } from "../command/packet/types.js";
 import { ServerMovePlayer } from "../command/server/ServerMovePlayer.js";
 import { PlayerControlKeys } from "../util/keys.js";
+import Logger from "../util/logger.js";
 import { Pos, type PosType } from "../util/pos.js";
 import type { WorldMap } from "./WorldMap.js";
 
@@ -19,6 +20,7 @@ export class Scene {
     movementSpeed = 0;
     movementDir = 0;
 
+    private log = Logger.get("Scene");
     private hasReceivedPos = false;
 
     private lastSent = {
@@ -53,7 +55,7 @@ export class Scene {
 
                 this.hasReceivedPos = true;
 
-                console.log(`[Scene] Server corrected pos to ${this.pos}`);
+                this.log.debug(`Server corrected pos to ${this.pos}`);
 
                 client.events.emit(
                     "PlayerMove",

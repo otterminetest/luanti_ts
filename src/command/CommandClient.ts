@@ -1,4 +1,8 @@
+import { EventEmitter } from "node:events";
+import type TypedEmitter from "typed-emitter";
 import type { UdpConnection } from "../net/UdpConnection.js";
+import { dataViewToHexDump } from "../util/hex.js";
+import Logger from "../util/logger.js";
 import type { ClientCommand } from "./ClientCommand.js";
 import { type ServerCommand, getServerCommand } from "./ServerCommand.js";
 import { ClientInit } from "./client/ClientInit.js";
@@ -14,10 +18,6 @@ import { setSeqNr } from "./packet/sequence.js";
 import { SplitPacketHandler } from "./packet/splitpackethandler.js";
 import { ControlType, PacketType } from "./packet/types.js";
 
-import { EventEmitter } from "node:events";
-import type TypedEmitter from "typed-emitter";
-import { dataViewToHexDump } from "../util/hex.js";
-
 type CommandClientEvents = {
     ServerCommand: (c: ServerCommand) => void;
     ServerPacket: (p: Packet) => void;
@@ -30,6 +30,7 @@ export class CommandClient {
     peerId = 0;
     splitHandler = new SplitPacketHandler();
     events = new EventEmitter() as TypedEmitter<CommandClientEvents>;
+    private log = Logger.get("CommandClient");
 
     ready: Promise<void>;
 
@@ -37,7 +38,7 @@ export class CommandClient {
         this.events.setMaxListeners(10000);
 
         this.ready = new Promise((resolve) => {
-            console.debug("socket opened");
+            this.log.debug("socket opened");
             ws.on("open", () => resolve());
         });
 
@@ -48,20 +49,20 @@ export class CommandClient {
                         try {
                             this.onMessage(ab);
                         } catch (e) {
-                            console.error("onMessage error", e);
+                            this.log.error("onMessage error", e);
                         }
                     });
                 } else if (ev.data instanceof Buffer) {
                     try {
                         this.onMessage(ev.data);
                     } catch (e) {
-                        console.error("onMessage error", e);
+                        this.log.error("onMessage error", e);
                     }
                 } else {
-                    console.error("invalid event type: ", ev.data);
+                    this.log.error("invalid event type: ", ev.data);
                 }
             } catch (e) {
-                console.error("ws.on(message) error", e);
+                this.log.error("ws.on(message) error", e);
             }
         });
     }
@@ -69,7 +70,7 @@ export class CommandClient {
     private onMessage(ab: ArrayBuffer) {
         const buf = new Uint8Array(ab);
         const p = unmarshal(buf);
-        //console.debug(`<<< Received ${buf.length} bytes: ${p}`)
+        //this.log.trace(`<<< Received ${buf.length} bytes: ${p}`)
         this.events.emit("ServerPacket", p);
 
         if (p.packetType === PacketType.Reliable) {
@@ -99,15 +100,15 @@ export class CommandClient {
             const cmd = getServerCommand(cmdId);
             if (cmd != null) {
                 cmd.unmarshalPacket(cmd_dv);
-                console.debug("received command", cmd);
+                this.log.debug("received command", cmd);
                 this.events.emit("ServerCommand", cmd);
             } else {
-                console.debug(`Unknown command received: ${cmdId}`);
+                this.log.error(`Unknown command received: ${cmdId}`);
             }
         } catch (e) {
-            console.error(`Error in command-id: ${cmdId}: ${e}`);
-            console.error(`Packet-Dump: ${dataViewToHexDump(cmd_dv)}`);
-            console.debug("Caught error, aborting");
+            this.log.error(`Error in command-id: ${cmdId}: ${e}`);
+            this.log.error(`Packet-Dump: ${dataViewToHexDump(cmd_dv)}`);
+            this.log.error("Caught error, aborting");
             this.close();
         }
     }
@@ -127,7 +128,7 @@ export class CommandClient {
 
         p.peerId = this.peerId;
         const payload = marshal(p);
-        //console.debug(`>>> Sent ${payload.length} bytes: ${p}`)
+        //this.log.trace(`>>> Sent ${payload.length} bytes: ${p}`)
         this.ws.send(payload);
 
         if (p.packetType === PacketType.Reliable) {
@@ -184,7 +185,7 @@ export class CommandClient {
                     p.controlType === ControlType.SetPeerID
                 ) {
                     this.peerId = p.peerId;
-                    console.debug(`Set peerId to ${this.peerId}`);
+                    this.log.debug(`Set peerId to ${this.peerId}`);
                     this.events.off("ServerPacket", listener);
                     clearTimeout(handle);
                     resolve();
@@ -241,9 +242,7 @@ export class CommandClient {
         // Start listening *before* sending to avoid race conditions
         const p = this.waitForCommand(expected, timeout);
         this.sendCommand(cmd, type, timeout).catch((e) => {
-            // If sending fails, we should probably stop waiting?
-            // For now, let the timeout handle it or user handle rejection.
-            console.error("Failed to send command during exchange", e);
+            this.log.error("Failed to send command during exchange", e);
         });
         return p;
     }

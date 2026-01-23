@@ -34,6 +34,7 @@ import { ServerSetSky } from "./server/ServerSetSky.js";
 import { ServerSetStars } from "./server/ServerSetStars.js";
 import { ServerSetSun } from "./server/ServerSetSun.js";
 import { ServerShowFormspec } from "./server/ServerShowFormspec.js";
+import { ServerSpawnParticleBatch } from "./server/ServerSpawnParticleBatch.js";
 import { ServerTimeOfDay } from "./server/ServerTimeOfDay.js";
 import { ServerUpdatePlayerList } from "./server/ServerUpdatePlayerList.js";
 
@@ -119,6 +120,8 @@ export function getServerCommand(commandId: number): ServerCommand | null {
             return new ServerFormspecPrepend();
         case 0x63:
             return new ServerSetLighting();
+        case 0x64:
+            return new ServerSpawnParticleBatch();
     }
     return null;
 }

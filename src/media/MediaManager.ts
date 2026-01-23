@@ -3,6 +3,7 @@ import { ClientRequestMedia } from "../command/client/ClientRequestMedia.js";
 import { PacketType } from "../command/packet/types.js";
 import { ServerAnnounceMedia } from "../command/server/ServerAnnounceMedia.js";
 import { ServerMedia } from "../command/server/ServerMedia.js";
+import Logger from "../util/logger.js";
 import type { MediaStore } from "./MediaStore.js";
 
 export class MediaManager {
@@ -12,9 +13,11 @@ export class MediaManager {
     private receivedFiles = new Set<string>();
 
     private resolveReady?: () => void;
-    private rejectReady?: (err: Error) => void;
+    // biome-ignore lint/suspicious/noExplicitAny: error type
+    private rejectReady?: (err: any) => void;
 
     private requestSent = false;
+    private log = Logger.get("MediaManager");
 
     constructor(
         private client: Client,
@@ -41,7 +44,7 @@ export class MediaManager {
     }
 
     private async handleAnnounce(cmd: ServerAnnounceMedia) {
-        console.log(`[MediaManager] Server announced ${cmd.files.length} files.`);
+        this.log.info(`Server announced ${cmd.files.length} files.`);
 
         const toRequest: string[] = [];
 
@@ -60,17 +63,15 @@ export class MediaManager {
 
         const results = await Promise.all(checks);
 
-        // Filter out nulls to get the list of files to request
         for (const name of results) {
             if (name) toRequest.push(name);
         }
 
         if (toRequest.length > 0) {
-            console.log(`[MediaManager] Requesting ${toRequest.length} files...`);
-            // Split packet handling is done by CommandClient/PacketFactory
+            this.log.info(`Requesting ${toRequest.length} files...`);
             this.client.cc.sendCommand(new ClientRequestMedia(toRequest), PacketType.Reliable);
         } else {
-            console.log("[MediaManager] No new media files to request (all in cache).");
+            this.log.info("No new media files to request (all in cache).");
         }
 
         this.requestSent = true;
@@ -81,9 +82,7 @@ export class MediaManager {
         let added = 0;
 
         for (const file of cmd.files) {
-            // Only process if we actually needed this file
             if (this.requiredFiles.has(file.name)) {
-                // Save to DB
                 const hash = this.requiredFiles.get(file.name);
                 if (hash) {
                     await this.store.addMedia(hash, file.name, file.data);
@@ -101,8 +100,8 @@ export class MediaManager {
                 this.receivedFiles.size % 100 === 0 ||
                 this.receivedFiles.size === this.requiredFiles.size
             ) {
-                console.log(
-                    `[MediaManager] Progress: ${this.receivedFiles.size}/${this.requiredFiles.size} (${percent}%)`,
+                this.log.info(
+                    `Progress: ${this.receivedFiles.size}/${this.requiredFiles.size} (${percent}%)`,
                 );
             }
         }
@@ -114,7 +113,7 @@ export class MediaManager {
         if (!this.requestSent) return;
 
         if (this.receivedFiles.size >= this.requiredFiles.size) {
-            console.log(`[MediaManager] Media sync complete (${this.receivedFiles.size} files).`);
+            this.log.info(`Media sync complete (${this.receivedFiles.size} files).`);
             if (this.resolveReady) {
                 this.resolveReady();
                 this.resolveReady = undefined;

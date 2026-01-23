@@ -1,4 +1,5 @@
 import { decompress } from "fzstd";
+import Logger from "../../util/logger.js";
 import type { ServerCommand } from "../ServerCommand.js";
 import { PayloadHelper } from "../packet/PayloadHelper.js";
 
@@ -10,6 +11,7 @@ export interface MediaFileAnnouncement {
 export class ServerAnnounceMedia implements ServerCommand {
     files: MediaFileAnnouncement[] = [];
     remoteServers: string[] = [];
+    private log = Logger.get("ServerAnnounceMedia");
 
     unmarshalPacket(dv: DataView): void {
         const ph = new PayloadHelper(dv);
@@ -19,7 +21,7 @@ export class ServerAnnounceMedia implements ServerCommand {
         const namesLen = dv.getUint32(offset);
         offset += 4;
 
-        console.debug(`[ServerAnnounceMedia] Compressed names length: ${namesLen}`);
+        this.log.debug(`Compressed names length: ${namesLen}`);
 
         const compressedNames = new Uint8Array(dv.buffer, dv.byteOffset + offset, namesLen);
         offset += namesLen;
@@ -55,7 +57,7 @@ export class ServerAnnounceMedia implements ServerCommand {
                 namesOffset += 2;
             }
 
-            console.debug(`[ServerAnnounceMedia] Parsing ${count} names (U32=${isU32Count})`);
+            this.log.debug(`Parsing ${count} names (U32=${isU32Count})`);
 
             // A: Standard Interleaved [Len, String, Len, String...]
             // B: Split Arrays [Len, Len, Len...] followed by [String, String, String...]
@@ -111,7 +113,7 @@ export class ServerAnnounceMedia implements ServerCommand {
                 }
             }
         } catch (e) {
-            console.error("Failed to parse media announcement names:", e);
+            this.log.error("Failed to parse media announcement names:", e);
         }
 
         // SHA1 hashes
@@ -145,7 +147,7 @@ export class ServerAnnounceMedia implements ServerCommand {
                     }
                 }
             } catch (e) {
-                console.error("[ServerAnnounceMedia] Error parsing remote servers:", e);
+                this.log.error("Error parsing remote servers:", e);
             }
         }
     }
