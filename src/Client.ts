@@ -61,8 +61,8 @@ export class Client {
         const udp = new UdpConnection(host, port);
         udp.open();
         this.cc = new CommandClient(udp);
-        const wm = new WorldMap(this.cc, this.nodedefs);
-        new Scene(this, wm);
+        this.wm = new WorldMap(this.cc, this.nodedefs);
+        this.scene = new Scene(this, this.wm);
 
         if (fetchMedia) {
             const mediaStore = new PouchDBMediaStore(`media_${host}_${port}`);
@@ -127,6 +127,8 @@ export class Client {
     }
 
     cc: CommandClient;
+    wm: WorldMap;
+    scene: Scene;
     mediaManager?: MediaManager;
 
     media_ready: Promise<void>;

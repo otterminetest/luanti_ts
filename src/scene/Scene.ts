@@ -3,9 +3,11 @@ import { ClientGotBlocks } from "../command/client/ClientGotBlocks.js";
 import { ClientPlayerPos } from "../command/client/ClientPlayerPos.js";
 import { PacketType } from "../command/packet/types.js";
 import { ServerMovePlayer } from "../command/server/ServerMovePlayer.js";
+import { ServerPlayerSpeed } from "../command/server/ServerPlayerSpeed.js";
 import { PlayerControlKeys } from "../util/keys.js";
 import Logger from "../util/logger.js";
 import { Pos, type PosType } from "../util/pos.js";
+import { EntityManager } from "./EntityManager.js";
 import type { WorldMap } from "./WorldMap.js";
 
 export class Scene {
@@ -19,6 +21,8 @@ export class Scene {
     cameraInverted = false;
     movementSpeed = 0;
     movementDir = 0;
+
+    em: EntityManager;
 
     private log = Logger.get("Scene");
     private hasReceivedPos = false;
@@ -42,6 +46,8 @@ export class Scene {
         public client: Client,
         public wm: WorldMap,
     ) {
+        this.em = new EntityManager(client);
+
         wm.events.on("BlockAdded", (b) => {
             const gotblocks = new ClientGotBlocks([b.pos]);
             client.cc.sendCommand(gotblocks, PacketType.Original);
@@ -60,6 +66,15 @@ export class Scene {
                 client.events.emit(
                     "PlayerMove",
                     new Pos<PosType.Entity>(cmd.posX, cmd.posY, cmd.posZ),
+                );
+            } else if (cmd instanceof ServerPlayerSpeed) {
+                this.speed = new Pos<PosType.Entity>(
+                    this.speed.x + cmd.addedVel.x,
+                    this.speed.y + cmd.addedVel.y,
+                    this.speed.z + cmd.addedVel.z,
+                );
+                this.log.debug(
+                    `Server added velocity: ${cmd.addedVel.x}, ${cmd.addedVel.y}, ${cmd.addedVel.z}`,
                 );
             }
         });
