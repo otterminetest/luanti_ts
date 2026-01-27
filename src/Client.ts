@@ -23,9 +23,13 @@ import { ServerActiveObjectRemoveAdd } from "./command/server/ServerActiveObject
 import { ServerAuthAccept } from "./command/server/ServerAuthAccept.js";
 import { ServerHello } from "./command/server/ServerHello.js";
 import { ServerInventory } from "./command/server/ServerInventory.js";
+import { ServerItemDefinitions } from "./command/server/ServerItemDefinitions.js";
 import { ServerNodeDefinitions } from "./command/server/ServerNodeDefinitions.js";
 import { ServerSRPBytesSB } from "./command/server/ServerSRPBytesSB.js";
 import { Inventory } from "./inventory/Inventory.js";
+import type { ItemDefinition } from "./itemdefs/ItemDefinition.js";
+import { getDigParams } from "./itemdefs/ItemDefinition.js";
+import { ParseItemDefinitions } from "./itemdefs/parser.js";
 import { MediaManager } from "./media/MediaManager.js";
 import { PouchDBMediaStore } from "./media/PouchDBMediaStore.js";
 import { UdpConnection } from "./net/UdpConnection.js";
@@ -84,12 +88,33 @@ export class Client {
                         const deflist = ParseNodeDefinitions(cmd);
                         for (const def of deflist) {
                             this.nodedefs.set(def.id, def);
+                            this.nodeNameMap.set(def.name, def.id);
                         }
                         this.log.debug(`Parsed ${deflist.length} node definitions.`);
                         resolve();
                     } catch (e) {
                         this.log.error("Failed to parse Node Definitions:", e);
                         reject(new Error("Node Definition Parsing Failed"));
+                    }
+                }
+            });
+        });
+
+        this.itemdefs_ready = new Promise((resolve, reject) => {
+            this.cc.events.on("ServerCommand", (cmd) => {
+                if (cmd instanceof ServerItemDefinitions) {
+                    try {
+                        this.log.debug("Parsing Item Definitions...");
+                        const { items, aliases } = ParseItemDefinitions(cmd, this.protocolVersion);
+                        this.itemdefs = items;
+                        this.itemAliases = aliases;
+                        this.log.debug(
+                            `Parsed ${items.size} item definitions and ${aliases.size} aliases.`,
+                        );
+                        resolve();
+                    } catch (e) {
+                        this.log.error("Failed to parse Item Definitions:", e);
+                        reject(new Error("Item Definition Parsing Failed"));
                     }
                 }
             });
@@ -133,11 +158,18 @@ export class Client {
 
     media_ready: Promise<void>;
     nodedefs_ready: Promise<void>;
+    itemdefs_ready: Promise<void>;
 
     events = new EventEmitter() as TypedEmitter<ClientEvents>;
 
     eph = generateEphemeral();
     nodedefs = new Map<number, NodeDefinition>();
+    nodeNameMap = new Map<string, number>();
+    itemdefs = new Map<string, ItemDefinition>();
+    itemAliases = new Map<string, string>();
+
+    protocolVersion = 0;
+
     tickhandle!: NodeJS.Timeout;
 
     // Inventory State
@@ -147,6 +179,49 @@ export class Client {
     username = "";
     localPlayerId = 0;
     localPlayerInitData?: GenericCAOInitData;
+
+    /**
+     * Calculates the time required to dig a specific node with a specific tool.
+     * @param nodeName The name of the node (e.g., "mcl_core:obsidian")
+     * @param toolName The name of the tool (e.g., "mcl_tools:pick_wood")
+     * @returns Time in seconds, or Infinity if not diggable.
+     */
+    getDigTime(nodeName: string, toolName: string): number {
+        const nodeId = this.nodeNameMap.get(nodeName);
+        if (nodeId === undefined) {
+            this.log.warn(`Node '${nodeName}' not found in definitions.`);
+            return Number.POSITIVE_INFINITY;
+        }
+        const nodeDef = this.nodedefs.get(nodeId);
+        if (!nodeDef) return Number.POSITIVE_INFINITY;
+
+        let actualToolName = toolName;
+        if (this.itemAliases.has(toolName)) {
+            actualToolName = this.itemAliases.get(toolName) || toolName;
+        }
+
+        let itemDef = this.itemdefs.get(actualToolName);
+
+        if (!itemDef) {
+            itemDef = this.itemdefs.get("");
+        }
+
+        let toolCaps = itemDef?.tool_capabilities;
+
+        if (!toolCaps) {
+            const hand = this.itemdefs.get("");
+            toolCaps = hand?.tool_capabilities;
+        }
+
+        if (!toolCaps) {
+            this.log.warn("No tool capabilities found.");
+            return Number.POSITIVE_INFINITY;
+        }
+
+        const params = getDigParams(nodeDef.groups, toolCaps);
+        if (!params.diggable) return Number.POSITIVE_INFINITY;
+        return params.time;
+    }
 
     login(username: string, password: string): Promise<void> {
         this.username = username;
@@ -167,6 +242,9 @@ export class Client {
                     ),
                 )
                 .then((sh) => {
+                    this.protocolVersion = sh.protocolVersion;
+                    this.log.debug(`Server Protocol Version: ${this.protocolVersion}`);
+
                     if (sh.authMechanismFirstSrp) {
                         const salt = generateSalt();
                         const private_key = derivePrivateKey(salt, username, password);
@@ -243,8 +321,12 @@ export class Client {
                 })
                 .then(() => {
                     clearTimeout(loginTimeout);
-                    // Wait for both definitions and media
-                    return Promise.all([this.nodedefs_ready, this.media_ready]);
+                    // Wait for definitions and media
+                    return Promise.all([
+                        this.nodedefs_ready,
+                        this.itemdefs_ready,
+                        this.media_ready,
+                    ]);
                 })
                 .then(() => resolve())
                 .catch((e) => {

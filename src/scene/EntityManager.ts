@@ -1,10 +1,10 @@
+import type { Client } from "../Client.js";
 import {
     ActiveObjectCommandType,
     type AoCmdAttachTo,
 } from "../activeobject/ActiveObjectCommands.js";
 import { ActiveObjectType } from "../activeobject/ActiveObjectTypes.js";
 import { GenericCAOInitData } from "../activeobject/GenericCAOInitData.js";
-import type { Client } from "../Client.js";
 import { ServerActiveObjectMessages } from "../command/server/ServerActiveObjectMessages.js";
 import { ServerActiveObjectRemoveAdd } from "../command/server/ServerActiveObjectRemoveAdd.js";
 import Logger from "../util/logger.js";
@@ -42,15 +42,9 @@ export class EntityManager {
         for (const obj of cmd.addedObjects) {
             let name = "Unknown";
 
-            if (
-                obj.type === ActiveObjectType.PLAYER &&
-                obj.data instanceof GenericCAOInitData
-            ) {
+            if (obj.type === ActiveObjectType.PLAYER && obj.data instanceof GenericCAOInitData) {
                 name = obj.data.name;
-            } else if (
-                obj.type === ActiveObjectType.LUAENTITY &&
-                typeof obj.data === "string"
-            ) {
+            } else if (obj.type === ActiveObjectType.LUAENTITY && typeof obj.data === "string") {
                 // LuaEntity init data is usually "EntityName params..."
                 // We assume the first word (before space or null) is the entity name
                 const nullIdx = obj.data.indexOf("\0");
@@ -89,10 +83,10 @@ export class EntityManager {
                     // Cast to the specific command class to access parent_id
                     const attachCmd = msg.cmd as AoCmdAttachTo;
                     this.attachedToId = attachCmd.parent_id;
-                    
+
                     const parentName = this.entities.get(this.attachedToId) || "Unknown";
                     this.log.debug(
-                        `Local player attached to entity ${this.attachedToId} (${parentName})`
+                        `Local player attached to entity ${this.attachedToId} (${parentName})`,
                     );
                 }
             }
