@@ -16,8 +16,8 @@ export class Scene {
     pitch = 0;
     yaw = 0;
     keyPressed = PlayerControlKeys.None;
-    fov = 0;
-    wantedRange = 0;
+    fov = 255;
+    wantedRange = 255;
     cameraInverted = false;
     movementSpeed = 0;
     movementDir = 0;

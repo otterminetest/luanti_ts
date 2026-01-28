@@ -6,11 +6,11 @@ import { PayloadBuilder } from "../packet/PayloadBuilder.js";
 export interface PlayerPosOptions {
     pos: Pos<PosType.Entity>;
     speed?: Pos<PosType.Entity>;
-    pitch?: number; // In degrees
-    yaw?: number; // In degrees
-    keyPressed?: number; // Bitmask from PlayerControlKeys
-    fov?: number; // In radians (default is approx 72 degrees)
-    wantedRange?: number; // In map blocks (usually chunks)
+    pitch?: number; // Degrees
+    yaw?: number; // Degrees
+    keyPressed?: number;
+    fov?: number;
+    wantedRange?: number;
     cameraInverted?: boolean;
     movementSpeed?: number;
     movementDir?: number;
@@ -34,7 +34,6 @@ export class ClientPlayerPos implements ClientCommand {
         this.pitch = options.pitch || 0;
         this.yaw = options.yaw || 0;
         this.keyPressed = options.keyPressed || PlayerControlKeys.None;
-        // Default FOV ~72 degrees (1.25 rad), Default Range 0
         this.fov = options.fov || 1.25;
         this.wantedRange = options.wantedRange || 0;
         this.cameraInverted = options.cameraInverted || false;
@@ -47,44 +46,36 @@ export class ClientPlayerPos implements ClientCommand {
     }
 
     marshalPacket(): Uint8Array {
-        // Size calculation based on C++ struct:
-        // v3s32(12) + v3s32(12) + s32(4) + s32(4) + u32(4) + u8(1) + u8(1) + u8(1) + f32(4) + f32(4)
-        // Total: 47 bytes
         const pb = new PayloadBuilder(47);
         ClientPlayerPos.appendPlayerPos(pb, this);
         return pb.toUint8Array();
     }
 
-    /**
-     * Shared serialization logic used by ClientPlayerPos and ClientInteract
-     * Matches void writePlayerPos in serverpackethandler.cpp
-     */
     static appendPlayerPos(pb: PayloadBuilder, state: ClientPlayerPos) {
-        // [0] v3s32 position * 100
-        pb.appendInt32(Math.round(state.pos.x * 100));
-        pb.appendInt32(Math.round(state.pos.y * 100));
-        pb.appendInt32(Math.round(state.pos.z * 100));
+        // [0] v3s32 position * 1000
+        pb.appendInt32(Math.round(state.pos.x * 1000));
+        pb.appendInt32(Math.round(state.pos.y * 1000));
+        pb.appendInt32(Math.round(state.pos.z * 1000));
 
         // [12] v3s32 speed * 100
         pb.appendInt32(Math.round(state.speed.x * 100));
         pb.appendInt32(Math.round(state.speed.y * 100));
         pb.appendInt32(Math.round(state.speed.z * 100));
 
-        // [24] s32 pitch * 100
+        // [24] s32 pitch * 100 (Already Degrees)
         pb.appendInt32(Math.round(state.pitch * 100));
 
-        // [28] s32 yaw * 100
+        // [28] s32 yaw * 100 (Already Degrees)
         pb.appendInt32(Math.round(state.yaw * 100));
 
         // [32] u32 keyPressed
         pb.appendUint32(state.keyPressed);
 
-        // [36] u8 fov * 80 (clamped to 255)
+        // [36] u8 fov * 80
         const fovScaled = Math.min(255, Math.round(state.fov * 80.0));
         pb.appendUint8(fovScaled);
 
-        // [37] u8 wanted_range / MAP_BLOCKSIZE (16)
-        // C++: std::ceil(clientMap->getWantedRange() * (1.0f / MAP_BLOCKSIZE))
+        // [37] u8 wanted_range
         const rangeScaled = Math.min(255, Math.ceil(state.wantedRange));
         pb.appendUint8(rangeScaled);
 
