@@ -59,32 +59,36 @@ export class ServerAnnounceMedia implements ServerCommand {
 
             this.log.debug(`Parsing ${count} names (U32=${isU32Count})`);
 
-            // A: Standard Interleaved [Len, String, Len, String...]
-            // B: Split Arrays [Len, Len, Len...] followed by [String, String, String...]
-
-            // Check if the first "String" looks like a sequence of valid lengths
-            // If we interpret the first bytes as a string of length L, and that string contains
-            // binary data that looks like lengths, switch to Strategy B.
-
-            const probeLen = namesDv.getUint16(namesOffset);
+            // Strategy A: Standard Interleaved [Len, String, Len, String...]
+            // Strategy B: Split Arrays [Len, Len, Len...] followed by [String, String, String...]
+            
             let useSplitLayout = false;
 
-            // Probe: If the "string data" starts with 0x00 and a reasonable length byte (e.g. < 100),
-            if (namesOffset + 2 + probeLen <= namesDv.byteLength) {
-                if (probeLen > 0 && probeLen % 2 === 0) {
-                    const firstByte = namesDv.getUint8(namesOffset + 2);
-                    const secondByte = namesDv.getUint8(namesOffset + 3);
-                    if (firstByte === 0 && secondByte > 0 && secondByte < 100) {
-                        useSplitLayout = true;
-                    }
+            // Robust Heuristic:
+            // In Split layout, the first `count * 2` bytes are u16 lengths.
+            // Since filenames are typically short (< 256 bytes), the high byte of these u16s (at index 0, 2, 4...) should be 0x00.
+            // In Standard layout, `namesOffset + 2` would be the first character of the first filename, which is usually not 0x00.
+            if (count > 0 && namesOffset + count * 2 <= namesDv.byteLength) {
+                let zeros = 0;
+                let checks = 0;
+                // Check the high-byte of the first few items
+                const limit = Math.min(count, 10);
+                
+                for(let k = 0; k < limit; k++) {
+                    const highByte = namesDv.getUint8(namesOffset + (k * 2));
+                    if (highByte === 0) zeros++;
+                    checks++;
+                }
+
+                // If the majority of the "length high bytes" are 0, it's extremely likely to be Split Layout
+                if (checks > 0 && zeros / checks >= 0.7) {
+                    useSplitLayout = true;
                 }
             }
 
             if (useSplitLayout) {
                 // Strategy B: Read all lengths first
                 const lengths: number[] = [];
-                // We already read the first length in 'probeLen' but didn't advance offset for it yet
-                // Reset to start of lengths
                 let lenOffset = namesOffset;
 
                 for (let i = 0; i < count; i++) {
@@ -96,6 +100,7 @@ export class ServerAnnounceMedia implements ServerCommand {
                 let strOffset = lenOffset;
                 for (let i = 0; i < count; i++) {
                     const len = lengths[i];
+                    // Manual string read to avoid recreating PayloadHelper or slicing too much
                     let str = "";
                     for (let k = 0; k < len; k++) {
                         str += String.fromCharCode(namesDv.getUint8(strOffset + k));
