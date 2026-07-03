@@ -1,6 +1,7 @@
 # luanti_ts
 
-(not currently maintained but that might change in the future)
+(not currently maintained but that might change in the future)      
+Credits to https://github.com/otterminetest/meseweb for base of this project.      
 
 A TypeScript implementation of the Luanti (Minetest) network protocol. This library provides a client interface for connecting to Luanti servers via UDP, handling SRP authentication, packet serialization, and state management.
 
